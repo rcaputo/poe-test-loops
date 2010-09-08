@@ -1,5 +1,3 @@
-# $Id$
-
 package POE::Test::DondeEstan;
 
 use warnings;

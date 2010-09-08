@@ -1,5 +1,3 @@
-# $Id$
-
 use ExtUtils::MakeMaker;
 
 # Touch auto-generated files so we don't see warnings.
