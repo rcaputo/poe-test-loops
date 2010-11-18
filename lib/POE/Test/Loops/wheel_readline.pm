@@ -164,8 +164,11 @@ BEGIN {
     $termios->getattr();
     my $ospeed = $termios->getospeed() || eval { POSIX::B38400() } || 0;
 
-    my $term = $ENV{TERM} || 'vt100';
-    my $termcap = eval { Term::Cap->Tgetent( { TERM => $term, OSPEED => $ospeed } ) };
+    $ENV{TERM} = "vt100" if $^O eq "solaris" or not $ENV{TERM};
+
+    my $termcap = eval {
+      Term::Cap->Tgetent( { TERM => $ENV{TERM}, OSPEED => $ospeed } )
+    };
     unless ($termcap) {
       $error = "Term::Cap failure: $@";
       $error =~ s/ at \S+ line \d+.*//;
@@ -281,6 +284,28 @@ POE::Kernel->run();
 sub test_start {
   my ($kernel, $heap) = @_[KERNEL, HEAP];
 
+  # The ReadLine wheel to drive and test.
+
+  eval {
+    $heap->{readline} = POE::Wheel::ReadLine->new(
+      InputEvent => "got_readline_input",
+      appname => "my_cli",
+    );
+  };
+
+  if ($@) {
+    my $error = $@;
+    $error =~ s/ at \S+ line \d+.*//s;
+    $error =~ s/\s+/ /g;
+    plan skip_all => $error;
+    return;
+  }
+
+  unless ($heap->{readline}) {
+    plan skip_all => "POE::Wheel::Readline->new failed (term=$ENV{TERM})";
+    return;
+  }
+
   # Create a Wheel::ReadWrite to work on the driving side of the
   # pipes.
 
@@ -290,14 +315,6 @@ sub test_start {
     InputEvent => "got_readwrite_output",
   );
 
-  # The ReadLine wheel to drive and test.
-
-  eval {
-    $heap->{readline} = POE::Wheel::ReadLine->new(
-      InputEvent => "got_readline_input",
-      appname => "my_cli",
-    );
-  };
 
   # And start testing.
 
