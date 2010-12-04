@@ -13,8 +13,7 @@ WriteMakefile(
   META_ADD     => {
     resources  => {
       license    => 'http://dev.perl.org/licenses/',
-      repository =>
-        'https://poe.svn.sourceforge.net/svnroot/poe/trunk/poe-test-loops'
+      repository => 'https://github.com/rcaputo/poe-test-loops',
     },
   },
   PREREQ_PM    => {
@@ -25,9 +24,10 @@ WriteMakefile(
     COMPRESS   => 'gzip -9f',
     SUFFIX     => 'gz',
     PREOP      => (
-      'svn-log.perl --tags ^ptl- | ' .
+      'git-log.pl | ' .
       'tee ./$(DISTNAME)-$(VERSION)/CHANGES > ./CHANGES;' .
-      'perldoc bin/poe-gen-tests > README'
+      'LANG=C perldoc bin/poe-gen-tests | ' .
+			'tee ./$(DISTNAME)-$(VERSON)/README > README'
     ),
   },
 );
