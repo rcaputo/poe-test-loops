@@ -342,9 +342,9 @@ POE::Session->create(
 
       my $test_14     = $kernel->alarm_set( test_14 => 1 => 14 );
       my @test_array  = $kernel->alarm_remove( $test_14 );
-      ok($test_array[0] eq 'test_14', "alarm 14 remove: name is correct");
-      ok($test_array[1] == 1,         "alarm 14 remove: time is correct");
-      ok($test_array[2] == 14,        "alarm 14 remove: data is correct");
+      ok($test_array[0] eq 'test_14',   "alarm 14 remove: name is correct");
+      ok($test_array[1] == 1,           "alarm 14 remove: time is correct");
+      is_deeply($test_array[2], [ 14 ], "alarm 14 remove: data is correct");
 
       # Have time stand still so we can test against it.
       # Heisenberg strikes again!
@@ -359,7 +359,7 @@ POE::Session->create(
           $test_scalar->[1] >= $now
         ),  "alarm 15 remove: time is correct"
       );
-      ok($test_scalar->[2] == 15, "alarm 15 remove: data is correct");
+      is_deeply($test_scalar->[2], [ 15 ], "alarm 15 remove: data is correct");
     },
 
     # This one is dispatched.
