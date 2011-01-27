@@ -27,7 +27,7 @@ WriteMakefile(
       'git-log.pl | ' .
       'tee ./$(DISTNAME)-$(VERSION)/CHANGES > ./CHANGES;' .
       'LANG=C perldoc bin/poe-gen-tests | ' .
-			'tee ./$(DISTNAME)-$(VERSON)/README > README'
+			'tee ./$(DISTNAME)-$(VERSION)/README > README'
     ),
   },
 );

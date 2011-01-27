@@ -44,13 +44,15 @@ POE::Session->create(
         InputEvent   => "got_log_line",
         PollInterval => 3,
       );
-      $_[KERNEL]->delay(timeout => 15);
+      $_[KERNEL]->delay(timeout => 20);
     },
     got_log_line => sub {
       my ($write, $time) = split /\s+/, $_[ARG0];
       my $elapsed = time() - $time;
       ok($elapsed <= 3, "response time <=3 seconds ($elapsed)");
-      delete $_[HEAP]{tailor} if $write >= TESTS;
+      return if $write < TESTS;
+      $_[KERNEL]->delay(timeout => undef);
+      delete $_[HEAP]{tailor};
     },
     timeout => sub {
       delete $_[HEAP]{tailor};
