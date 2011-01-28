@@ -18,7 +18,11 @@ use Test::More;
 use POE qw(NFA);
 my $NEW_POE;
 BEGIN {
-  if (eval("\$POE::VER" . "SION") <= 1.003) { # Pesky CPAN indexer.
+  # fixes Argument "1.294_272" isn't numeric in numeric le
+  my $poe_ver = eval("\$POE::VER" . "SION"); # Pesky CPAN indexer.
+  $poe_ver = $1 if $poe_ver =~ /^(?:[^_]+)\_/;
+
+  if ($poe_ver <= 1.003) { 
     $NEW_POE = 0;
     plan tests => 28;
   } else {
