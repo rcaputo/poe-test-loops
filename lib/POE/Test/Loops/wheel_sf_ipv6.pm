@@ -6,26 +6,33 @@
 
 use strict;
 use lib qw(./mylib ../mylib);
-use Socket;
+use Socket qw(AF_INET6);
 
 BEGIN {
   my $error;
 
-  eval 'use Socket6 ()';
-  if ( length($@) or not exists($INC{"Socket6.pm"}) ) {
-    $error = "Socket6 is needed for IPv6 tests";
+  eval 'use Socket::GetAddrInfo qw(:newapi getaddrinfo getnameinfo NI_NUMERICHOST NI_NUMERICSERV)';
+  if ($@) {
+    $error = "Socket::GetAddrInfo is needed for IPv6 tests";
   }
   elsif ($^O eq "cygwin") {
-    $error = "IPv6 is not available on Cygwin, even if Socket6 is installed";
+    $error = (
+      "IPv6 isn't available on Cygwin, even with Socket::GetAddrInfo installed"
+    );
   }
   else {
     my $addr;
-    eval { $addr = Socket6::inet_pton(&Socket6::AF_INET6, "::1") };
+    eval {
+      my ($error, @addr) = getaddrinfo(
+        "localhost", 80, { family => AF_INET6 }
+      );
+      $addr = $addr[0]{addr} if @addr;
+    };
     if ($@) {
-      $error = "AF_INET6 not provided by Socket6.pm ... can't test this";
+      $error = "error resolving localhost for IPv6: $@";
     }
     elsif (!defined $addr) {
-      $error = "IPv6 tests require a configured localhost address ('::1')";
+      $error = "IPv6 tests require a configured IPv6 localhost address";
     }
     elsif (!-f 'run_network_tests') {
       $error = "Network access (and permission) required to run this test";
@@ -63,7 +70,7 @@ diag( "packets across your localhost interface." );
 POE::Component::Server::TCP->new(
   Port               => 0,
   Address            => '::1',
-  Domain             => Socket6::AF_INET6,
+  Domain             => AF_INET6,
   Alias              => 'server',
   ClientConnected    => \&server_got_connect,
   ClientInput        => \&server_got_input,
@@ -74,7 +81,9 @@ POE::Component::Server::TCP->new(
   Started            => sub {
     eval {
       my $socket_name = $_[HEAP]{listener}->getsockname();
-      $tcp_server_port = (Socket6::unpack_sockaddr_in6($socket_name))[0];
+      (my ($err, $host), $tcp_server_port) = getnameinfo(
+        $socket_name, NI_NUMERICHOST | NI_NUMERICSERV
+      );
     };
     if (!$tcp_server_port || $@) {
       $tcp_server_port = undef;
@@ -126,7 +135,7 @@ if ($tcp_server_port) {
   POE::Component::Client::TCP->new(
     RemoteAddress => '::1',
     RemotePort    => $tcp_server_port,
-    Domain        => Socket6::AF_INET6,
+    Domain        => AF_INET6,
     BindAddress   => '::1',
     Connected     => \&client_got_connect,
     ServerInput   => \&client_got_input,
