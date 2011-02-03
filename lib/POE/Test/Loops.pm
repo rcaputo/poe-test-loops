@@ -6,7 +6,7 @@ use strict;
 use vars qw($VERSION);
 
 use vars qw($VERSION);
-$VERSION = '1.036_314'; # NOTE - Should be #.### (three decimal places)
+$VERSION = '1.040'; # NOTE - Should be #.### (three decimal places)
 
 use File::Spec;
 use File::Path;
