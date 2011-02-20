@@ -26,6 +26,7 @@ lib/POE/Test/Loops/wheel_curses.pm
 lib/POE/Test/Loops/wheel_readline.pm
 lib/POE/Test/Loops/wheel_readwrite.pm
 lib/POE/Test/Loops/wheel_run.pm
+lib/POE/Test/Loops/wheel_run_size.pm
 lib/POE/Test/Loops/wheel_sf_ipv6.pm
 lib/POE/Test/Loops/wheel_sf_tcp.pm
 lib/POE/Test/Loops/wheel_sf_udp.pm
