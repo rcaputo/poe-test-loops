@@ -3,7 +3,7 @@
 
 use strict;
 
-use Test::More tests => 4;
+use Test::More;
 use POSIX qw(_exit);
 use POE qw(Wheel::Run Filter::Line Filter::Stream Wheel::ReadWrite);
 
@@ -15,6 +15,8 @@ BEGIN {
 
   plan skip_all => $why if $why;
 }
+
+plan tests => 4;
 
 my $winsize = [85, 29, 100, 200];
 
