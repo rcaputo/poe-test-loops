@@ -6,7 +6,20 @@
 
 use strict;
 use lib qw(./mylib ../mylib);
-use Socket qw(AF_INET6);
+
+BEGIN {
+  eval "use Socket qw(AF_INET6)";
+  if ($@) {
+    eval "use Socket6 qw(AF_INET6)";
+    if ($@) {
+      print "1..0 # Cannot find AF_INET6 support in Socket or Socket6.\n";
+      CORE::exit();
+    }
+  }
+}
+
+# Second BEGIN block so that AF_INET6 is defined before this code is
+# compiled.
 
 BEGIN {
   my $error;
