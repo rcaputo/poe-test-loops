@@ -8,6 +8,7 @@ use strict;
 use lib qw(./mylib ../mylib);
 
 BEGIN {
+  local $SIG{__WARN__};
   eval "use Socket qw(AF_INET6)";
   if ($@) {
     eval "use Socket6 qw(AF_INET6)";
