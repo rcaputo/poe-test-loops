@@ -9,11 +9,13 @@ use lib qw(./mylib ../mylib);
 
 BEGIN {
   # under perl-5.6.2 the warning "leaks" from the eval, while newer versions don't...
-  # "AF_INET6" is not exported by the Socket module at (eval 83) line 1
+  # it's due to Exporter.pm behaving differently, so we have to shut it up
   no warnings 'redefine';
-  eval 'local $SIG{__WARN__} = undef; require Carp; local *Carp::carp = sub { die @_ }; require Socket; Socket->import("AF_INET6")';
+  require Carp;
+  local *Carp::carp = sub { die @_ };
+  eval { require Socket; Socket->import('AF_INET6') };
   if ($@) {
-    eval 'local $SIG{__WARN__} = undef; require Carp; local *Carp::carp = sub { die @_ }; require Socket6; Socket6->import("AF_INET6")';
+    eval { require Socket6; Socket6->import('AF_INET6') };
     if ($@) {
       print "1..0 # Skip Cannot find AF_INET6 support in Socket or Socket6.\n";
       CORE::exit();
