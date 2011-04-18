@@ -111,10 +111,10 @@ my @tests = (
       "\eb\eb",
       "\et",            # transpose-words
       "\cA\cT",         # transpose-chars (fail bol)
-      "\cE\cT",         # transpose-chars (fail eol)
+      "\cE12\cT",       # transpose-chars (at eol
       "\cJ",
     ],
-    done => "two one 21",
+    done => "two one 2121",
   },
 );
 
