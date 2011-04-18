@@ -7,7 +7,7 @@ use strict;
 use Test::More;
 
 if ($^O eq "MSWin32" and not $ENV{POE_DANTIC}) {
-  plan skip_all => "Sorry Perl crashes on $^O";
+  plan skip_all => "Perl crashes on $^O";
 }
 
 plan tests => 14;
