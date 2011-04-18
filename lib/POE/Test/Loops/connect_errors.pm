@@ -16,7 +16,7 @@ unless (-f "run_network_tests") {
 # MSWin32+ActiveState 5.6.1 and 5.10.1 always time out.  And if we remove the
 # delay, then the OS never times out.  5.8.0 seems to work fine.  Since this
 # behavior seems to come and go, we're skipping it for all versions of MSWin32.
-if ($^O eq 'MSWin32') {
+if ($^O eq 'MSWin32' and not $ENV{POE_DANTIC}) {
   plan skip_all => "This test fails for various versions of MSWin32 perl";
 }
 
