@@ -2,11 +2,8 @@
 
 package POE::Test::Loops;
 
+use warnings;
 use strict;
-use vars qw($VERSION);
-
-use vars qw($VERSION);
-$VERSION = '1.050'; # NOTE - Should be #.### (three decimal places)
 
 use File::Spec;
 use File::Path;
