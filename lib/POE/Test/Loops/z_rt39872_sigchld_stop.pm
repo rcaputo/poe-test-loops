@@ -95,7 +95,7 @@ sub work {
   }
 
   $kernel->delay_add( 'parent', 3 );
-  diag( "Wait 3" );
+  diag( "Parent $$ waiting 3sec for slow systems to settle." );
 
   return;
 }

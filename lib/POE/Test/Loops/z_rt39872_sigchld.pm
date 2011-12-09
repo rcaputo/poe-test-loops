@@ -62,7 +62,7 @@ sub _start {
 		}
 	PERL
 
-	DEBUG and warn "_start";
+	DEBUG and warn "$$ _start";
 	$kernel->alias_set( 'worker' );
 	$kernel->sig( CHLD => 'sig_CHLD' );
 
@@ -87,15 +87,15 @@ sub _start {
 
 sub _stop {
 	my( $kernel, $heap ) = @_[KERNEL, HEAP];
-	DEBUG and warn "_stop";
+	DEBUG and warn "$$ _stop";
 }
 
 sub done {
 	my( $kernel, $heap ) = @_[KERNEL, HEAP];
-	DEBUG and warn "done";
+	DEBUG and warn "$$ done";
 
 	$kernel->alias_remove( 'worker' );
-	$kernel->sig( 'CHLD' );
+  #$kernel->sig( 'CHLD' );
 
 	delete $heap->{W1};
 	delete $heap->{W2};
@@ -110,7 +110,7 @@ sub done {
 sub stdout {
 	my( $kernel, $heap, $input, $id ) = @_[KERNEL, HEAP, ARG0, ARG1];
 	my $N = $heap->{id2W}{$id};
-	DEBUG and warn "Input $N ($id): '$input'";
+	DEBUG and warn "$$ Input $N ($id): '$input'";
 	my $wheel = $heap->{ $N };
 	ok( ($input =~ /I am $N/), "Intro output" );
 	if( $N eq 'W1' ) {
@@ -122,7 +122,7 @@ sub stdout {
 sub stderr {
 	my( $kernel, $heap, $input, $id ) = @_[KERNEL, HEAP, ARG0, ARG1];
 	my $N = $heap->{id2W}{$id};
-	DEBUG and warn "Error $N ($id): '$input'";
+	DEBUG and warn "$$ Error $N ($id): '$input'";
 }
 
 sub error {
@@ -131,7 +131,7 @@ sub error {
 	];
 
 	my $N = $heap->{id2W}{$id};
-	DEBUG and warn "Error $N ($id): $op $errnum ($errstr)";
+	DEBUG and warn "$$ Error $N ($id): $op $errnum ($errstr)";
 	my $wheel = $heap->{ $N };
 
 	if( $op eq 'read' and $errnum==0 ) {
@@ -148,7 +148,7 @@ sub sig_CHLD {
 	];
 
 	my $N = $heap->{pid2W}{$pid};
-	DEBUG and warn "CHLD $N ($pid)";
+	DEBUG and warn "$$ CHLD $N ($pid)";
 	my $wheel = $heap->{ $N };
 
 	is( $heap->{closing}{$N}, 1, "$N closing" );
