@@ -4,7 +4,6 @@
 use strict;
 use warnings;
 
-sub DEBUG () { 0 }
 sub POE::Kernel::USE_SIGCHLD () { 1 }
 sub POE::Kernel::ASSERT_DEFAULT () { 1 }
 
@@ -28,18 +27,17 @@ if ($INC{'Tk.pm'}) {
 	exit 0;
 }
 
-plan tests => 5;
+plan tests => 6;
 
 POE::Session->create(
 	inline_states => {
-		_start => \&_start,
-		_stop  => \&_stop,
-		stdout => \&stdout,
-		stdout2 => \&stdout2,
-		stderr => \&stderr,
+		_start   => \&_start,
+		_stop    => \&_stop,
+		stdout   => \&stdout,
+		stderr   => \&stderr,
 		sig_CHLD => \&sig_CHLD,
-		error  => \&error,
-		done   => \&done
+		error    => \&error,
+		done     => \&done
 	}
 );
 
@@ -50,6 +48,8 @@ pass( "Sane exit" );
 
 sub _start {
 	my( $kernel, $heap ) = @_[KERNEL, HEAP];
+
+  # This subprocess announces its name and exits when told to.
 
 	my $prog = <<'	PERL';
 		$|++;
@@ -62,9 +62,15 @@ sub _start {
 		}
 	PERL
 
-	DEBUG and warn "$$ _start";
+	note "$$ _start";
+
+  # Linger a bit.
 	$kernel->alias_set( 'worker' );
-	$kernel->sig( CHLD => 'sig_CHLD' );
+
+  # The W1 test
+
+  # Start two subprocesses.
+  # They will trigger stdout() when they announce themselves.
 
 	$heap->{W1} = POE::Wheel::Run->new(
 		Program => [ $^X, '-e', $prog, "W1" ],
@@ -72,8 +78,10 @@ sub _start {
 		StderrEvent => 'stderr',
 		ErrorEvent  => 'error'
 	);
-	$heap->{id2W}{ $heap->{W1}->ID } = 'W1';
-	$heap->{pid2W}{ $heap->{W1}->PID } = 'W1';
+
+	$heap->{wheel_id_to_name}{ $heap->{W1}->ID } = 'W1';
+	$heap->{wheel_pid_to_name}{ $heap->{W1}->PID } = 'W1';
+  $kernel->sig_child($heap->{W1}->PID(), 'sig_CHLD');
 
 	$heap->{W2} = POE::Wheel::Run->new(
 		Program => [ $^X, '-e', $prog, "W2" ],
@@ -81,83 +89,103 @@ sub _start {
 		StderrEvent => 'stderr',
 		ErrorEvent  => 'error'
 	);
-	$heap->{id2W}{ $heap->{W2}->ID } = 'W2';
-	$heap->{pid2W}{ $heap->{W2}->PID } = 'W2';
+	$heap->{wheel_id_to_name}{ $heap->{W2}->ID } = 'W2';
+	$heap->{wheel_pid_to_name}{ $heap->{W2}->PID } = 'W2';
+  $kernel->sig_child($heap->{W2}->PID(), 'sig_CHLD');
 }
 
 sub _stop {
 	my( $kernel, $heap ) = @_[KERNEL, HEAP];
-	DEBUG and warn "$$ _stop";
+	note "$$ _stop";
 }
+
+# The first wheel is done.
+# Kill the other wheels.  We want to be sure only one wheel is done.
 
 sub done {
 	my( $kernel, $heap ) = @_[KERNEL, HEAP];
-	DEBUG and warn "$$ done";
-
-	$kernel->alias_remove( 'worker' );
-  #$kernel->sig( 'CHLD' );
+	note "$$ done";
 
 	delete $heap->{W1};
-	delete $heap->{W2};
+  delete $heap->{W2};
 
-	my @list = keys %{ $heap->{pid2W} };
+	my @list = keys %{ $heap->{wheel_pid_to_name} };
 	is( 0+@list, 1, "One wheel left" );
 	kill SIGINT, @list;
 
 	alarm(5); $SIG{ALRM} = sub { die "test case didn't end sanely" };
 }
 
+# A child process has announced itself.
+# Test whether we got the right output.
+# If it's the "W1" test, have it shut down cleanly.
+
 sub stdout {
 	my( $kernel, $heap, $input, $id ) = @_[KERNEL, HEAP, ARG0, ARG1];
-	my $N = $heap->{id2W}{$id};
-	DEBUG and warn "$$ Input $N ($id): '$input'";
-	my $wheel = $heap->{ $N };
+
+	my $N = $heap->{wheel_id_to_name}{$id};
+	note "$$ ($N) ($id) STDOUT: '$input'";
+
+  # Success if this is an announcement.
 	ok( ($input =~ /I am $N/), "Intro output" );
-	if( $N eq 'W1' ) {
-		$heap->{closing}{ $N } = 1;
-		$wheel->put( 'bye' );
-	}
+
+  return if $N ne 'W1';
+
+	my $wheel = $heap->{ $N };
+
+  # One of the subprocesses will be closed normally.
+  # The other will be killed later.
+
+  $heap->{closing}{ $N } = 1;
+  $wheel->put( 'bye' );
 }
+
+# Dump the child's STDERR for diagnostics.
 
 sub stderr {
 	my( $kernel, $heap, $input, $id ) = @_[KERNEL, HEAP, ARG0, ARG1];
-	my $N = $heap->{id2W}{$id};
-	DEBUG and warn "$$ Error $N ($id): '$input'";
+	my $N = $heap->{wheel_id_to_name}{$id};
+	diag("$$ ($N) ($id) STDERR: '$input'");
 }
+
+# Abnormal errors.  Not part of the test, but the test should fail
+# anyway.
 
 sub error {
 	my( $kernel, $heap, $op, $errnum, $errstr, $id, $fh ) = @_[
 		KERNEL, HEAP, ARG0..$#_
 	];
 
-	my $N = $heap->{id2W}{$id};
-	DEBUG and warn "$$ Error $N ($id): $op $errnum ($errstr)";
-	my $wheel = $heap->{ $N };
-
-	if( $op eq 'read' and $errnum==0 ) {
-		# normal exit
-	}
-	else {
-		die "Error $N ($id): $op $errnum ($errstr)";
+	unless ( $op eq 'read' and $errnum==0 ) {
+    my $N = $heap->{wheel_id_to_name}{$id};
+    die("$$ Error $N ($id): $op $errnum ($errstr)");
 	}
 }
+
+# A child process has exited.  How's that working out for us?
 
 sub sig_CHLD {
 	my( $kernel, $heap, $signal, $pid, $status ) = @_[
 		KERNEL, HEAP, ARG0..$#_
 	];
 
-	my $N = $heap->{pid2W}{$pid};
-	DEBUG and warn "$$ CHLD $N ($pid)";
-	my $wheel = $heap->{ $N };
+	my $N = delete $heap->{wheel_pid_to_name}{$pid};
+	note "$$ CHLD $N ($pid)";
 
-	is( $heap->{closing}{$N}, 1, "$N closing" );
+  unless ($N eq 'W1') {
+    is( $heap->{closing}{$N}, undef, "$N killed" );
+    return;
+  }
+
+  is( $heap->{closing}{$N}, 1, "$N closing" );
+
+	my $wheel = delete $heap->{ $N };
 
 	delete $heap->{closing}{$N};
-	delete $heap->{pid2W}{$pid};
-	delete $heap->{$N};
-	delete $heap->{id2W}{ $wheel->ID };
-	$kernel->delay( done => 0.1 );
+	delete $heap->{wheel_id_to_name}{ $wheel->ID };
+
+  # A brief delay to make sure all child processes are reaped.
+	$kernel->delay( done => 0.25 );
 }
 
 1;
