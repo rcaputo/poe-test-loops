@@ -43,7 +43,13 @@ BEGIN {
 
   sub STD_TEST_COUNT () { 8 }
 
-  plan tests => 4 + 15 + 8 + 8 + 8 * STD_TEST_COUNT;
+  plan tests =>
+    4 +
+    15 +
+    8 +
+    8 +
+    4 + #Silent/Open FD tests
+    8 * STD_TEST_COUNT;
 }
 
 # Turn on extra debugging output within this test program.
@@ -406,14 +412,6 @@ sub create_constructor_session {
         eval {
           POE::Wheel::Run->new(
             Program => sub { 1; },
-            ErrorEvent => 'error_event',
-          );
-        };
-        ok(!(!$@), "new: at least one io event");
-
-        eval {
-          POE::Wheel::Run->new(
-            Program => sub { 1; },
             Conduit => 'wibble-magic-pipe',
             StdoutEvent => 'stdout_event',
             ErrorEvent => 'error_event',
@@ -446,7 +444,16 @@ sub create_constructor_session {
           );
         };
         ok(!(!$@), "new: Program is needed");
-
+        
+        eval {
+          POE::Wheel::Run->new(
+            Program => sub { 0 },
+            StdoutEvent => "stdout_nonexistent",
+            RedirectStdout => "/non/existent"
+          );
+        };
+        ok(!(!$@), "new: *Event and Redirect* are mutually exclusive");
+        
         timeout_poke();
       },
       _stop => sub { }, # Pacify assertions.
@@ -530,6 +537,97 @@ SKIP: {
   );
 }
 
+sub silent_start {
+  
+  pipe my ($stdout_read,$stdout_write);
+  pipe my ($stdin_read, $stdin_write);
+  my $wheel = POE::Wheel::Run->new(
+    Program => sub {
+      eval "print STDOUT 'CHILD:'";
+      eval 'my $input = <STDIN>; chomp($input); print STDERR $input;';
+      eval 'print STDERR "CHILD:";';
+      exit(0);
+    },
+    
+    RedirectOutput => $stdout_write,
+    RedirectStdin  => $stdin_read
+    
+  );
+  
+  select $stdin_write; $|=1;
+  
+  $_[HEAP]->{silent_fdes} = [$stdout_read, $stdin_write];
+  $_[HEAP]->{silent_wheel} = $wheel;
+  
+  print $stdin_write "PARENT:\n";
+  $poe_kernel->select_read($stdout_read, 'silent_got_stdout');
+  $poe_kernel->sig_child($wheel->PID, 'silent_sigchld');
+    
+  my $no_stdio = POE::Wheel::Run->new(
+    Program => \&note
+  );
+  $poe_kernel->sig_child($no_stdio->PID, 'silent_sigchld');
+  
+  ok(!($no_stdio->[ $no_stdio->HANDLE_STDOUT ] ||
+         $no_stdio->[ $no_stdio->HANDLE_STDERR ]),
+         "stdio/standard output handles closed without events");
+  
+  ok($no_stdio->[ $no_stdio->HANDLE_STDIN ],
+     "stdio discard/STDIN still alive");
+
+  $no_stdio = POE::Wheel::Run->new(
+    Program => \&note,
+    NoStdin => 1
+  );
+  
+  $poe_kernel->sig_child($no_stdio->PID, 'silent_sigchld');
+  ok(!($no_stdio->[ $no_stdio->HANDLE_STDIN ]),
+         "stdio/discarded STDIN with NoStdin");
+}
+
+sub _silent_check_common {
+  my ($fh,$re,$desc) = @_;
+  sysread($fh, my $buf = "", 8192);
+  like($buf, $re, $desc);
+  $poe_kernel->select_read($fh);
+  close($fh);
+}
+
+sub silent_got_stdout {
+  _silent_check_common(
+    $_[ARG0],
+    qr/CHILD:PARENT:CHILD:/,
+    "stdio/redirection"
+  );
+}
+
+sub silent_fd_status {
+  _silent_check_common(
+    $_[ARG0],
+    qr/STDERR:-1,STDIN:-1,STDOUT:-1/,
+    "stdio closed in child");
+}
+
+sub silent_sigchld {
+  #dummy..
+}
+
+
+
+sub silent_test {
+  #Use pipes here for redirection.
+  my $sess = POE::Session->create(
+    inline_states => {
+      _start => \&silent_start,
+      _stop => sub { },
+      #_stop => sub  { note "Stopped!" },
+      silent_got_stdout => \&silent_got_stdout,
+      silent_fd_status  => \&silent_fd_status,
+      silent_sigchld    => \&silent_sigchld
+    }
+  );
+}
+
 for my $chld_program (@chld_programs) {
   my ($chld_name, $chld_code) = @$chld_program;
 
@@ -577,6 +675,8 @@ for my $chld_program (@chld_programs) {
   }
 }
 # }}}
+
+silent_test();
 
 $poe_kernel->run;
 
