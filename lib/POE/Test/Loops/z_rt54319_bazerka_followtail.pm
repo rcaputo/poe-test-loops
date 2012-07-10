@@ -49,7 +49,7 @@ POE::Session->create(
     got_log_line => sub {
       my ($write, $time) = split /\s+/, $_[ARG0];
       my $elapsed = time() - $time;
-      ok($elapsed <= 3, "response time <=3 seconds ($elapsed)");
+      ok($elapsed <= 6, "response time <=6 seconds ($elapsed)");
       return if $write < TESTS;
       $_[KERNEL]->delay(timeout => undef);
       delete $_[HEAP]{tailor};
