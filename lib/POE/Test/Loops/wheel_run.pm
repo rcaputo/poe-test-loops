@@ -540,9 +540,13 @@ sub silent_start {
   pipe my ($stdin_read, $stdin_write);
   my $wheel = POE::Wheel::Run->new(
     Program => sub {
+      select STDERR; $|=1;
+      select STDOUT; $|=1;
       eval "print STDOUT 'CHILD:'";
       eval 'my $input = <STDIN>; chomp($input); print STDERR $input;';
       eval 'print STDERR "CHILD:";';
+      close STDOUT;
+      close STDERR;
       exit(0);
     },
     
