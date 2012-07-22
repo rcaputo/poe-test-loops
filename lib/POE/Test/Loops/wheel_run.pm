@@ -544,7 +544,7 @@ sub silent_start {
       select STDOUT; $|=1;
       eval "print STDOUT 'CHILD:'";
       eval 'my $input = <STDIN>; chomp($input); print STDERR $input;';
-      eval 'print STDERR "CHILD:";';
+      eval 'print STDERR "DONE:";';
       close STDOUT;
       close STDERR;
       exit(0);
@@ -587,18 +587,27 @@ sub silent_start {
 }
 
 sub _silent_check_common {
-  my ($fh,$re,$desc) = @_;
+  my ($fh,$re,$desc,$a,$term) = @_;
   sysread($fh, my $buf = "", 8192);
+  if( $a ) {
+    $$a = '' unless defined $$a;
+    $$a .= $buf;
+    return unless $$a =~ $term;
+  }
+
   like($buf, $re, $desc);
   $poe_kernel->select_read($fh);
   close($fh);
 }
 
+my $ACCUME;
 sub silent_got_stdout {
   _silent_check_common(
     $_[ARG0],
-    qr/CHILD:PARENT:CHILD:/,
-    "stdio/redirection"
+    qr/CHILD:PARENT:DONE:/,
+    "stdio/redirection",
+    \$ACCUME,
+    qr/DONE/
   );
 }
 
