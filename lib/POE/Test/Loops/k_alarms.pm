@@ -177,44 +177,48 @@ sub test_start {
 sub test_stop {
   my $heap = $_[HEAP];
 
-  ok($heap->{test}->{path_one}   == 1,  "single alarm rang ok");
-  ok($heap->{test}->{path_two}   == 1,  "second alarm superseded first");
-  ok($heap->{test}->{path_three} == 11, "two alarms rang in proper order");
-  ok($heap->{test}->{path_four}  == 11, "mixed alarm APIs rang properly");
-  ok($heap->{test}->{path_five}  == 1,  "stopped alarm should not ring");
-  ok($heap->{test}->{path_six}   == 1,  "single delay rang ok");
-  ok($heap->{test}->{path_seven} == 1,  "second delay superseded first");
-  ok($heap->{test}->{path_eight} == 11, "two delays rang in proper order");
-  ok($heap->{test}->{path_nine}  == 11, "mixed delay APIs rang properly");
-  ok($heap->{test}->{path_ten}   == 1,  "stopped delay should not ring");
+  is($heap->{test}->{path_one},   1,  "single alarm rang ok");
+  is($heap->{test}->{path_two},   1,  "second alarm superseded first");
+  is($heap->{test}->{path_three}, 11, "two alarms rang in proper order");
+  is($heap->{test}->{path_four},  11, "mixed alarm APIs rang properly");
+  is($heap->{test}->{path_five},  1,  "stopped alarm should not ring");
+  is($heap->{test}->{path_six},   1,  "single delay rang ok");
+  is($heap->{test}->{path_seven}, 1,  "second delay superseded first");
+  is($heap->{test}->{path_eight}, 11, "two delays rang in proper order");
+  is($heap->{test}->{path_nine},  11, "mixed delay APIs rang properly");
+  is($heap->{test}->{path_ten},   1,  "stopped delay should not ring");
 
   # Here's where we check the overall run time.  Increased to 15s for
   # extremely slow, overtaxed machines like my XP system running under
   # Virtual PC.
-  ok(time() - $heap->{start_time} <= 15, "tests ran reasonably fast");
+  cmp_ok(time() - $heap->{start_time}, '<=', 15, "tests ran reasonably fast");
 
   # And test alarm order.
-  ok(
-    ( $heap->{alarms_eleven}->[ 0] eq 'path_eleven_025_1' and
-      $heap->{alarms_eleven}->[ 1] eq 'path_eleven_025_2' and
-      $heap->{alarms_eleven}->[ 2] eq 'path_eleven_025_3' and
-      $heap->{alarms_eleven}->[ 3] eq 'path_eleven_050' and
-      $heap->{alarms_eleven}->[ 4] eq 'path_eleven_075' and
-      $heap->{alarms_eleven}->[ 5] eq 'path_eleven_100' and
-      $heap->{alarms_eleven}->[ 6] eq 'path_eleven_125' and
-      $heap->{alarms_eleven}->[ 7] eq 'path_eleven_150' and
-      $heap->{alarms_eleven}->[ 8] eq 'path_eleven_175' and
-      $heap->{alarms_eleven}->[ 9] eq 'path_eleven_200' and
-      $heap->{alarms_eleven}->[10] eq 'path_eleven_204' and
-      $heap->{alarms_eleven}->[11] eq 'path_eleven_205' and
-      $heap->{alarms_eleven}->[12] eq 'path_eleven_206' and
-      $heap->{alarms_eleven}->[13] eq 'path_eleven_225' and
-      $heap->{alarms_eleven}->[14] eq 'path_eleven_250' and
-      $heap->{alarms_eleven}->[15] eq 'path_eleven_275' and
-      $heap->{alarms_eleven}->[16] eq 'path_eleven_300' and
-      $heap->{alarms_eleven}->[17] eq 'path_eleven_325' and
-      $heap->{alarms_eleven}->[18] eq 'path_eleven_350'
-    ),
+  is_deeply(
+    $heap->{alarms_eleven},
+    [
+      qw(
+        path_eleven_025_1
+        path_eleven_025_2
+        path_eleven_025_3
+        path_eleven_050
+        path_eleven_075
+        path_eleven_100
+        path_eleven_125
+        path_eleven_150
+        path_eleven_175
+        path_eleven_200
+        path_eleven_204
+        path_eleven_205
+        path_eleven_206
+        path_eleven_225
+        path_eleven_250
+        path_eleven_275
+        path_eleven_300
+        path_eleven_325
+        path_eleven_350
+      )
+    ],
     "alarms rang in order"
   );
 }
@@ -342,8 +346,8 @@ POE::Session->create(
 
       my $test_14     = $kernel->alarm_set( test_14 => 1 => 14 );
       my @test_array  = $kernel->alarm_remove( $test_14 );
-      ok($test_array[0] eq 'test_14',   "alarm 14 remove: name is correct");
-      ok($test_array[1] == 1,           "alarm 14 remove: time is correct");
+      is($test_array[0], 'test_14',   "alarm 14 remove: name is correct");
+      is($test_array[1], 1,           "alarm 14 remove: time is correct");
       is_deeply($test_array[2], [ 14 ], "alarm 14 remove: data is correct");
 
       # Have time stand still so we can test against it.
@@ -353,7 +357,7 @@ POE::Session->create(
       my $test_15 = $kernel->delay_set( test_15 => 1 => 15 );
 
       my $test_scalar = $kernel->alarm_remove( $test_15 );
-      ok($test_scalar->[0] eq 'test_15', "alarm 15 remove: name is correct");
+      is($test_scalar->[0], 'test_15', "alarm 15 remove: name is correct");
       ok(
         ( $test_scalar->[1] <= $now + 3 and
           $test_scalar->[1] >= $now
@@ -366,7 +370,7 @@ POE::Session->create(
     test_13 => sub {
       my $kernel = $_[KERNEL];
 
-      ok($_[ARG0] == 13, "alarm 13: received proper data");
+      is($_[ARG0], 13, "alarm 13: received proper data");
 
       # Set a couple alarms, then clear them all.
       $kernel->delay( test_16 => 1 );
@@ -378,29 +382,29 @@ POE::Session->create(
 
       # One alarm.
       my $new_time = $kernel->alarm_adjust( $alarm_id => -1 );
-      ok($new_time == 49, "alarm 18: adjusted backward correctly");
+      is($new_time, 49, "alarm 18: adjusted backward correctly");
 
       $new_time = $kernel->alarm_adjust( $alarm_id => 1 );
-      ok($new_time == 50, "alarm 18: adjusted forward correctly");
+      is($new_time, 50, "alarm 18: adjusted forward correctly");
 
       # Two alarms.
       $alarm_id = $kernel->alarm_set( test_19 => 52 => 19 );
       $new_time = $kernel->alarm_adjust( $alarm_id => -4 );
-      ok($new_time == 48, "alarm 19: adjusted backward correctly");
+      is($new_time, 48, "alarm 19: adjusted backward correctly");
 
       $new_time = $kernel->alarm_adjust( $alarm_id => 4 );
-      ok($new_time == 52, "alarm 19: adjusted forward correctly");
+      is($new_time, 52, "alarm 19: adjusted forward correctly");
 
       # Three alarms.
       $alarm_id = $kernel->alarm_set( test_20 => 49 => 20 );
       $new_time = $kernel->alarm_adjust( $alarm_id => 2 );
-      ok($new_time == 51, "alarm 20: adjusted forward once correctly");
+      is($new_time, 51, "alarm 20: adjusted forward once correctly");
 
       $new_time = $kernel->alarm_adjust( $alarm_id => 2 );
-      ok($new_time == 53, "alarm 20: adjusted forward twice correctly");
+      is($new_time, 53, "alarm 20: adjusted forward twice correctly");
 
       $new_time = $kernel->alarm_adjust( $alarm_id => -2 );
-      ok($new_time == 51, "alarm 20: adjusted backward correctly");
+      is($new_time, 51, "alarm 20: adjusted backward correctly");
 
       # Test alarm adjusting on big queues.
       my @alarm_filler;
@@ -411,19 +415,19 @@ POE::Session->create(
       # Moving inside the alarm range.
       $alarm_id = $kernel->alarm_set( test_21 => 50 => 21 );
       $new_time = $kernel->alarm_adjust( $alarm_id => -10 );
-      ok($new_time == 40, "alarm 21: adjusted backward correctly");
+      is($new_time, 40, "alarm 21: adjusted backward correctly");
 
       $new_time = $kernel->alarm_adjust( $alarm_id => 20 );
-      ok($new_time == 60, "alarm 21: adjusted forward correctly");
+      is($new_time, 60, "alarm 21: adjusted forward correctly");
 
       # Moving outside (to the beginning) of the alarm range.
       $new_time = $kernel->alarm_adjust( $alarm_id => -100 );
-      ok($new_time == -40, "alarm 21: adjusted first correctly");
+      is($new_time, -40, "alarm 21: adjusted first correctly");
 
       # Moving outside (to the end) of the alarm range.
       $alarm_id = $kernel->alarm_set( test_22 => 50 => 22 );
       $new_time = $kernel->alarm_adjust( $alarm_id => 100 );
-      ok($new_time == 150, "alarm 22: adjusted last correctly");
+      is($new_time, 150, "alarm 22: adjusted last correctly");
 
       # Remove the filler events.
       foreach (@alarm_filler) {
@@ -451,12 +455,12 @@ POE::Session->create(
     _stop => sub {
       my $heap = $_[HEAP];
 
-      ok(@{$heap->{tests}} == 5, "the right number of alarms were dispatched");
-      ok($heap->{tests}->[0] == 21, "alarm 21 was dispatched first");
-      ok($heap->{tests}->[1] == 18, "alarm 18 was dispatched second");
-      ok($heap->{tests}->[2] == 20, "alarm 20 was dispatched third");
-      ok($heap->{tests}->[3] == 19, "alarm 19 was dispatched fourth");
-      ok($heap->{tests}->[4] == 22, "alarm 22 was dispatched fifth");
+      is(@{$heap->{tests}},   5, "the right number of alarms were dispatched");
+      is($heap->{tests}->[0], 21, "alarm 21 was dispatched first");
+      is($heap->{tests}->[1], 18, "alarm 18 was dispatched second");
+      is($heap->{tests}->[2], 20, "alarm 20 was dispatched third");
+      is($heap->{tests}->[3], 19, "alarm 19 was dispatched fourth");
+      is($heap->{tests}->[4], 22, "alarm 22 was dispatched fifth");
     },
   }
 );
