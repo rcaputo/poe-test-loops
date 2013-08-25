@@ -2,7 +2,7 @@
 # vim: ts=2 sw=2 expandtab
 
 # POE::XS::Loop::Poll wasn't handling errors correctly, this was
-# particularly noticable for connect() failures, so check connection
+# particularly noticeable for connect() failures, so check connection
 # failures are handled correctly
 
 use strict;
