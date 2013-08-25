@@ -579,7 +579,7 @@ POE::MySession->create(
 
       # 5.004 and 5.005 have some nasty gc issues. Near as I can tell,
       # data inside the heap is surviving the session DESTROY. This
-      # isnt possible in a sane and normal world. So if this is giving
+      # isn't possible in a sane and normal world. So if this is giving
       # you fits, consider it a sign that your "legacy perl" fetish is
       # bizarre and harmful.
       if ($] >= 5.006 or ($] >= 5.004 and $] < 5.00405)) {
@@ -632,7 +632,7 @@ is(
 
 # 5.004 and 5.005 have some nasty gc issues. Near as I can tell,
 # data inside the heap is surviving the session DESTROY. This
-# isnt possible in a sane and normal world.
+# isn't possible in a sane and normal world.
 if($] >= '5.006') {
   $expected = 4;
 }
