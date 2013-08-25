@@ -181,7 +181,7 @@ sub _get_loop_cfg {
       }
 
       # The following line is not blank, so it appears we're in a
-      # properly formated =for paragraph.
+      # properly formatted =for paragraph.
       $in_test_block = TEST_BLOCK_FOR_RIGHT;
       push @test_source, $_;
       next;
