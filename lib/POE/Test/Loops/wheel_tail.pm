@@ -18,31 +18,6 @@ BEGIN {
 
 use Test::More;
 
-unless (-f "run_network_tests") {
-  plan skip_all => "Network access (and permission) required to run this test";
-}
-
-if ($^O eq "cygwin" and not $ENV{POE_DANTIC}) {
-  plan skip_all => "Cygwin file open/locking semantics thwart this test.";
-}
-
-# to work around an issue on MSWin32+old perls
-# it always hangs on the 7th test...
-if ($^O eq 'MSWin32') {
-  if ($] < 5.008) {
-    plan skip_all => "This test always hangs on MSWin32+perl older than 5.8.0";
-  }
-  if ($] < 5.010) {
-    # ARGH, it doesn't lock up on Strawberry 5.8.x but it does on
-    # ActiveState 5.8.x!!!  ugly method, but it works for me...
-    require Config;
-    if ($Config::Config{cf_email} =~ /ActiveState/) {
-      plan skip_all =>
-        "This test always hangs on MSWin32+ActiveState perl older than 5.10";
-    }
-  }
-}
-
 plan tests => 10;
 
 use POE qw(
@@ -242,108 +217,120 @@ sub client_tcp_got_flush {
 ###############################################################################
 # Start the TCP server and client.
 
-POE::Component::Server::TCP->new(
-  Port     => 0,
-  Address  => '127.0.0.1',
-  Acceptor => sub {
-    &sss_new(@_[ARG0..ARG2]);
-    # This next badness is just for testing.
-    my $sockname = $_[HEAP]->{listener}->getsockname();
-    delete $_[HEAP]->{listener};
-
-    my ($port, $addr) = sockaddr_in($sockname);
-    $addr = inet_ntoa($addr);
-
-    ok(
-      ($addr eq '127.0.0.1') && ($port == $tcp_server_port),
-      "received connection"
-    );
-  },
-  Started  => sub {
-    $tcp_server_port = (
-      sockaddr_in($_[HEAP]->{listener}->getsockname())
-    )[0];
-  },
-);
-
-POE::Session->create(
-  inline_states => {
-    _start     => \&client_tcp_start,
-    _stop      => \&client_tcp_stop,
-    got_server => \&client_tcp_connected,
-    got_error  => \&client_tcp_got_error,
-    got_flush  => \&client_tcp_got_flush,
-    got_alarm  => \&client_tcp_got_alarm,
+SKIP: {
+  unless (-f "run_network_tests") {
+    skip "network access (and permission) required to run this test", 7;
   }
-);
+
+  POE::Component::Server::TCP->new(
+    Port     => 0,
+    Address  => '127.0.0.1',
+    Acceptor => sub {
+      &sss_new(@_[ARG0..ARG2]);
+      # This next badness is just for testing.
+      my $sockname = $_[HEAP]->{listener}->getsockname();
+      delete $_[HEAP]->{listener};
+
+      my ($port, $addr) = sockaddr_in($sockname);
+      $addr = inet_ntoa($addr);
+
+      ok(
+        ($addr eq '127.0.0.1') && ($port == $tcp_server_port),
+        "received connection"
+      );
+    },
+    Started  => sub {
+      $tcp_server_port = (
+        sockaddr_in($_[HEAP]->{listener}->getsockname())
+      )[0];
+    },
+  );
+
+  POE::Session->create(
+    inline_states => {
+      _start     => \&client_tcp_start,
+      _stop      => \&client_tcp_stop,
+      got_server => \&client_tcp_connected,
+      got_error  => \&client_tcp_got_error,
+      got_flush  => \&client_tcp_got_flush,
+      got_alarm  => \&client_tcp_got_alarm,
+    }
+  );
+}
 
 ### Test a file that appears and disappears.
 
-POE::Session->create(
-  inline_states => {
-    _start => sub {
-      my ($kernel, $heap) = @_[KERNEL, HEAP];
+SKIP: {
+  if (($^O eq 'MSWin32' or $^O eq 'cygwin') and not $ENV{POE_DANTIC}) {
+    skip "Can't test file reset on $^O because the OS locks opened files", 2;
+  }
 
-      unlink "./test-tail-file";
-      $heap->{wheel} = POE::Wheel::FollowTail->new(
-        Filter        => POE::Filter::Line->new(Literal => "\n"),
-        Filename      => "./test-tail-file",
-        InputEvent    => "got_input",
-        ErrorEvent    => "got_error",
-        ResetEvent    => "got_reset",
-        PollInterval  => 0.1,
-      );
-      $kernel->delay(create_file => 1);
-      $heap->{sent_count}  = 0;
-      $heap->{recv_count}  = 0;
-      $heap->{reset_count} = 0;
-      DEBUG and warn "=== file tail start";
-    },
+  POE::Session->create(
+    inline_states => {
+      _start => sub {
+        my ($kernel, $heap) = @_[KERNEL, HEAP];
 
-    create_file => sub {
-      open(FH, ">./test-tail-file") or die $!;
-      print FH "moo\n";
-      close FH;
-      DEBUG and warn "=== file tail create file";
-      $_[HEAP]->{sent_count}++;
-    },
-
-    got_input => sub {
-      my ($kernel, $heap) = @_[KERNEL, HEAP];
-      $heap->{recv_count}++;
-
-      DEBUG and warn "=== file tail input: $_[ARG0]\n";
-
-      unlink "./test-tail-file";
-
-      if ($heap->{recv_count} == 1) {
+        unlink "./test-tail-file";
+        $heap->{wheel} = POE::Wheel::FollowTail->new(
+          Filter        => POE::Filter::Line->new(Literal => "\n"),
+          Filename      => "./test-tail-file",
+          InputEvent    => "got_input",
+          ErrorEvent    => "got_error",
+          ResetEvent    => "got_reset",
+          PollInterval  => 0.1,
+        );
         $kernel->delay(create_file => 1);
-        return;
-      }
+        $heap->{sent_count}  = 0;
+        $heap->{recv_count}  = 0;
+        $heap->{reset_count} = 0;
+        DEBUG and warn "=== file tail start";
+      },
 
-      delete $heap->{wheel};
+      create_file => sub {
+        open(FH, ">./test-tail-file") or die $!;
+        print FH "moo\n";
+        close FH;
+        DEBUG and warn "=== file tail create file";
+        $_[HEAP]->{sent_count}++;
+      },
+
+      got_input => sub {
+        my ($kernel, $heap) = @_[KERNEL, HEAP];
+        $heap->{recv_count}++;
+
+        DEBUG and warn "=== file tail input: $_[ARG0]\n";
+
+        unlink "./test-tail-file";
+
+        if ($heap->{recv_count} == 1) {
+          $kernel->delay(create_file => 1);
+          return;
+        }
+
+        delete $heap->{wheel};
+      },
+
+      got_error => sub { warn "$_[ARG0] error $_[ARG1]: $_[ARG2]"; die },
+
+      got_reset => sub {
+        DEBUG and warn "=== file tail got reset";
+        $_[HEAP]->{reset_count}++;
+      },
+
+      _stop => sub {
+        DEBUG and warn "=== file tail stop";
+        my $heap = $_[HEAP];
+        ok(
+          ($heap->{sent_count} == $heap->{recv_count}) &&
+          ($heap->{sent_count} == 2),
+          "file tail sent and received everything we should " .
+          "sent($heap->{sent_count}) recv($heap->{recv_count}) wanted(2)"
+        );
+        is($heap->{reset_count}, 2, "file tail resets detected");
+      },
     },
-
-    got_error => sub { warn "$_[ARG0] error $_[ARG1]: $_[ARG2]"; die },
-
-    got_reset => sub {
-      DEBUG and warn "=== file tail got reset";
-      $_[HEAP]->{reset_count}++;
-    },
-
-    _stop => sub {
-      DEBUG and warn "=== file tail stop";
-      my $heap = $_[HEAP];
-      ok(
-        ($heap->{sent_count} == $heap->{recv_count}) &&
-        ($heap->{sent_count} == 2),
-        "file tail sent and received everything we should " .
-        "sent($heap->{sent_count}) recv($heap->{recv_count}) wanted(2)"
-      );
-      is($heap->{reset_count}, 2, "file tail resets detected");
-    },
-  },
-);
+  );
+}
 
 ### main loop
 
