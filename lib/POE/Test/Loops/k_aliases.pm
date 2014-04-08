@@ -94,8 +94,8 @@ sub machine_sig_zombie {
 
 sub machine_stop {
   my $heap = $_[HEAP];
-  ok($heap->{idle_count} == 1, "session received one SIGIDLE");
-  ok($heap->{zombie_count} == 1, "session received one SIGZOMBIE");
+  is($heap->{idle_count}, 1, "session received one SIGIDLE");
+  is($heap->{zombie_count}, 1, "session received one SIGZOMBIE");
 }
 
 # Spawn a state machine for testing.
