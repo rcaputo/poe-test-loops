@@ -43,7 +43,8 @@ pass( "Done" );
 
 
 #############################################################################
-package PoeTestWorker;
+package
+PoeTestWorker;
 
 use strict;
 use warnings;

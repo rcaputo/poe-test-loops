@@ -12,7 +12,8 @@ use Test::More tests => 37;
 sub POE::Kernel::ASSERT_DEFAULT () { 1 }
 
 BEGIN {
-  package POE::Kernel;
+  package
+  POE::Kernel;
   use constant TRACE_DEFAULT => exists($INC{'Devel/Cover.pm'});
 }
 
