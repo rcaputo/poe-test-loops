@@ -23,7 +23,7 @@ BEGIN {
 # though: setting this too high can cause timing problems and test
 # failures on some systems.
 
-my $fork_count;
+use constant FORK_COUNT => 8;
 
 BEGIN {
   # We can't "plan skip_all" because that calls exit().  And Tk will
@@ -43,9 +43,11 @@ BEGIN {
     CORE::exit();
   }
 
-  $fork_count = 8;
-  plan tests => $fork_count + 7;
+  plan tests => FORK_COUNT+ 7;
 }
+
+use IO::Pipely qw(pipely);
+my ($pipe_read, $pipe_write) = pipely();
 
 BEGIN { use_ok("POE") }
 
@@ -106,7 +108,7 @@ POE::Session->create(
 
       my $fork_start_time = time();
 
-      for (my $child = 0; $child < $fork_count; $child++) {
+      for (my $child = 0; $child < FORK_COUNT; $child++) {
         my $child_pid = fork;
 
         if (defined $child_pid) {
@@ -118,8 +120,17 @@ POE::Session->create(
             $kernel->post(catcher => catch => $child_pid);
           }
           else {
-            # Child side sleeps. With the fishes.
+            # A brief sleep so the parent has more opportunity to
+            # finish forking.
+            sleep 1;
+
+            # Defensively make sure SIGINT will be fatal.
             $SIG{INT} = 'DEFAULT';
+
+            # Tell the parent we're ready.
+            print $pipe_write "$$\n";
+
+            # Wait for SIGINT.
             sleep 3600;
             exit;
           }
@@ -129,29 +140,21 @@ POE::Session->create(
         }
       }
 
-
       ok(
-        $heap->{forked} == $fork_count,
-        "forked $heap->{forked} processes (out of $fork_count)"
+        $heap->{forked} == FORK_COUNT,
+        "forked $heap->{forked} processes (out of " . FORK_COUNT . ")"
       );
 
-      # Wait a factor of the fork time for things to settle down.
-      # This prevents false negatives on slower systems.
+      # NOTE: This is bad form.  We're going to block here until all
+      # children check in, or die trying.
 
-      my $fork_delay = time() - $fork_start_time;
-
-      if ($fork_delay < 2) {
-        $fork_delay = 2;
-      }
-      elsif ($fork_delay < 5) {
-        $fork_delay = 5;
-      }
-      else {
-        $fork_delay = 10;
+      my $ready_count = 0;
+      while (<$pipe_read>) {
+        last if ++$ready_count >= FORK_COUNT;
       }
 
-      $kernel->delay( forking_time_is_up => $fork_delay );
-      diag("Waiting $fork_delay seconds for child processes to settle.");
+      $kernel->yield( forking_time_is_up => 1 );
+      note("Waiting 1 second for child processes to settle.");
     },
 
     _stop => sub {
@@ -167,13 +170,11 @@ POE::Session->create(
     catch_sigchld => sub {
       my ($kernel, $heap) = @_[KERNEL, HEAP];
 
-      # Count the child reap.
-      $heap->{reaped}++;
-
-      # Refresh the fork timeout.
-      $kernel->delay(
-        reaping_time_is_up => 2 * ($heap->{forked} - $heap->{reaped} + 1)
-      );
+      # Count the child reap.  If that's all of them, wait just a
+      # little longer to make sure there aren't extra ones.
+      if (++$heap->{reaped} >= FORK_COUNT) {
+        $kernel->delay( reaping_time_is_up => 0.500 );
+      }
     },
 
     forking_time_is_up => sub {
@@ -193,18 +194,14 @@ POE::Session->create(
 
       $heap->{reap_start} = time();
 
-      # Wait a factor of the number of child processes, plus one, for
-      # reaped children.  The extra time is to ensure we don't reap
-      # more processes than we started with.
+      # Cap the maximum time for failures.
 
-      $kernel->delay(
-        reaping_time_is_up => 2 * ($heap->{forked} - $heap->{reaped} + 1)
-      );
+      $kernel->delay( reaping_time_is_up => 10 );
     },
 
     # Do nothing here.  The timer exists just to keep the session
     # alive.  Once it's dispatched, the session can exit.
-    reaping_time_is_up => sub { },
+    reaping_time_is_up => sub { undef },
   },
 );
 
