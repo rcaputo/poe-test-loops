@@ -182,22 +182,19 @@ sub client_tcp_connected {
   $heap->{flush_count} = 0;
   $heap->{put_count}   = 0;
 
-  $kernel->yield( 'got_alarm' );
+  $kernel->yield( 'next_send' );
 }
 
-sub client_tcp_got_alarm {
+sub client_tcp_next_send {
   my ($kernel, $heap, $line) = @_[KERNEL, HEAP, ARG0];
 
   DEBUG and warn "=== client tcp got alarm";
 
   $heap->{wheel}->put( '0123456789ABCDEF0123456789ABCDEF' );
-
   $heap->{put_count} += 2;
-  if ($heap->{put_count} < $max_send_count) {
-    # Delay is 1 for slow hardware.
-    $kernel->delay( got_alarm => 1 );
-  }
-  else {
+
+  # Trigger shutdown after the last test send.
+  if ($heap->{put_count} >= $max_send_count) {
     $heap->{wheel}->put( 'DONEDONEDONEDONE' );
   }
 }
@@ -220,8 +217,15 @@ sub client_tcp_got_error {
 sub client_tcp_got_flush {
   $_[HEAP]->{flush_count}++;
   DEBUG and warn "=== client_tcp_got_flush";
-  # Delays destruction until all data is out.
-  delete $_[HEAP]->{wheel} if $_[HEAP]->{put_count} >= $max_send_count;
+
+  if ($_[HEAP]->{put_count} < $max_send_count) {
+    # Puts a little delay between puts.
+    $_[KERNEL]->delay( next_send => 0.100 );
+  }
+  else {
+    # Delays destruction until all data is out.
+    delete $_[HEAP]->{wheel};
+  }
 }
 
 ###############################################################################
@@ -263,7 +267,7 @@ SKIP: {
       got_server => \&client_tcp_connected,
       got_error  => \&client_tcp_got_error,
       got_flush  => \&client_tcp_got_flush,
-      got_alarm  => \&client_tcp_got_alarm,
+      next_send  => \&client_tcp_next_send,
     }
   );
 }
@@ -287,9 +291,9 @@ SKIP: {
           InputEvent    => "got_input",
           ErrorEvent    => "got_error",
           ResetEvent    => "got_reset",
-          PollInterval  => 0.1,
+          IdleEvent     => "create_file",
+          PollInterval  => 0.500,
         );
-        $kernel->delay(create_file => 1);
         $heap->{sent_count}  = 0;
         $heap->{recv_count}  = 0;
         $heap->{reset_count} = 0;
@@ -302,6 +306,9 @@ SKIP: {
         close FH;
         DEBUG and warn "=== file tail create file";
         $_[HEAP]->{sent_count}++;
+
+        # Make file creation a one-shot occurrence.
+        $_[HEAP]->{wheel}->event( IdleEvent => undef );
       },
 
       got_input => sub {
@@ -313,7 +320,8 @@ SKIP: {
         unlink "./test-tail-file";
 
         if ($heap->{recv_count} == 1) {
-          $kernel->delay(create_file => 1);
+          # Trigger a new one-shot file creation.
+          $heap->{wheel}->event( IdleEvent => 'create_file' );
           return;
         }
 
