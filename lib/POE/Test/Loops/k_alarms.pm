@@ -17,6 +17,8 @@ BEGIN {
   use constant TRACE_DEFAULT => exists($INC{'Devel/Cover.pm'});
 }
 
+use constant WAIT => 0.5;
+
 BEGIN { use_ok("POE") }
 
 # Test the ID-based alarm API.  Start several test paths.  Each path
@@ -50,56 +52,56 @@ sub test_start {
 
   # Path #1: single alarm; make sure it rings.
   $heap->{test}->{path_one} = 0;
-  $kernel->alarm( path_one => time() + 2, 1.1 );
+  $kernel->alarm( path_one => time() + WAIT, 1.1 );
 
   # Path #2: two alarms; make sure only the second one rings.
   $heap->{test}->{path_two} = 0;
-  $kernel->alarm( path_two => time() + 2, 2.1 );
-  $kernel->alarm( path_two => time() + 2, 2.2 );
+  $kernel->alarm( path_two => time() + WAIT, 2.1 );
+  $kernel->alarm( path_two => time() + WAIT, 2.2 );
 
   # Path #3: two alarms; make sure they both ring in order.
   $heap->{test}->{path_three} = 0;
-  $kernel->alarm_add( path_three => time() + 2, 3.1 );
-  $kernel->alarm_add( path_three => time() + 2, 3.2 );
+  $kernel->alarm_add( path_three => time() + WAIT, 3.1 );
+  $kernel->alarm_add( path_three => time() + WAIT, 3.2 );
 
   # Path #4: interleaved alarm and alarm_add; only the last two should
   # ring, in order.
   $heap->{test}->{path_four} = 0;
-  $kernel->alarm(     path_four => time() + 2, 4.1 );
-  $kernel->alarm_add( path_four => time() + 2, 4.2 );
-  $kernel->alarm(     path_four => time() + 2, 4.3 );
-  $kernel->alarm_add( path_four => time() + 2, 4.4 );
+  $kernel->alarm(     path_four => time() + WAIT, 4.1 );
+  $kernel->alarm_add( path_four => time() + WAIT, 4.2 );
+  $kernel->alarm(     path_four => time() + WAIT, 4.3 );
+  $kernel->alarm_add( path_four => time() + WAIT, 4.4 );
 
   # Path #5: an alarm that is squelched; nothing should ring.
   $heap->{test}->{path_five} = 1;
-  $kernel->alarm( path_five => time() + 2, 5.1 );
+  $kernel->alarm( path_five => time() + WAIT, 5.1 );
   $kernel->alarm( 'path_five' );
 
   # Path #6: single delay; make sure it rings.
   $heap->{test}->{path_six} = 0;
-  $kernel->delay( path_six => 2, 6.1 );
+  $kernel->delay( path_six => WAIT, 6.1 );
 
   # Path #7: two delays; make sure only the second one rings.
   $heap->{test}->{path_seven} = 0;
-  $kernel->delay( path_seven => 2, 7.1 );
-  $kernel->delay( path_seven => 2, 7.2 );
+  $kernel->delay( path_seven => WAIT, 7.1 );
+  $kernel->delay( path_seven => WAIT, 7.2 );
 
   # Path #8: two delays; make sure they both ring in order.
   $heap->{test}->{path_eight} = 0;
-  $kernel->delay_add( path_eight => 2, 8.1 );
-  $kernel->delay_add( path_eight => 2, 8.2 );
+  $kernel->delay_add( path_eight => WAIT, 8.1 );
+  $kernel->delay_add( path_eight => WAIT, 8.2 );
 
   # Path #9: interleaved delay and delay_add; only the last two should
   # ring, in order.
   $heap->{test}->{path_nine} = 0;
-  $kernel->alarm(     path_nine => 2, 9.1 );
-  $kernel->alarm_add( path_nine => 2, 9.2 );
-  $kernel->alarm(     path_nine => 2, 9.3 );
-  $kernel->alarm_add( path_nine => 2, 9.4 );
+  $kernel->alarm(     path_nine => WAIT, 9.1 );
+  $kernel->alarm_add( path_nine => WAIT, 9.2 );
+  $kernel->alarm(     path_nine => WAIT, 9.3 );
+  $kernel->alarm_add( path_nine => WAIT, 9.4 );
 
   # Path #10: a delay that is squelched; nothing should ring.
   $heap->{test}->{path_ten} = 1;
-  $kernel->delay( path_ten => 2, 10.1 );
+  $kernel->delay( path_ten => WAIT, 10.1 );
   $kernel->alarm( 'path_ten' );
 
   # Path #11: ensure alarms are enqueued in time order.
@@ -355,7 +357,7 @@ POE::Session->create(
       # Heisenberg strikes again!
       my $now = time;
 
-      my $test_15 = $kernel->delay_set( test_15 => 1 => 15 );
+      my $test_15 = $kernel->delay_set( test_15 => WAIT, 15 );
 
       my $test_scalar = $kernel->alarm_remove( $test_15 );
       is($test_scalar->[0], 'test_15', "alarm 15 remove: name is correct");
@@ -374,8 +376,8 @@ POE::Session->create(
       is($_[ARG0], 13, "alarm 13: received proper data");
 
       # Set a couple alarms, then clear them all.
-      $kernel->delay( test_16 => 1 );
-      $kernel->delay( test_17 => 1 );
+      $kernel->delay( test_16 => WAIT );
+      $kernel->delay( test_17 => WAIT );
       $kernel->alarm_remove_all();
 
       # Test alarm adjusting on little queues.
