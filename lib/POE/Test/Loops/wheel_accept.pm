@@ -22,6 +22,7 @@ unless (-f "run_network_tests") {
   plan skip_all => "Network access (and permission) required to run this test";
 }
 
+use constant CONNECTOR_COUNT => 5;
 plan tests => 2;
 
 my $bound_port;
@@ -61,25 +62,27 @@ sub listener_start {
   );
 
   $heap->{accept_count} = 0;
-  $_[KERNEL]->delay( got_timeout => 30 );
+  $_[KERNEL]->delay( got_timeout => 10 );
 }
 
 sub listener_stop {
   if (defined $bound_port) {
     ok(
-      $_[HEAP]->{accept_count} == 5,
+      $_[HEAP]->{accept_count} == CONNECTOR_COUNT,
       "listening socket accepted connections"
     );
   }
 }
 
 sub listener_got_connection {
-  $_[HEAP]->{accept_count}++;
-  $_[KERNEL]->delay( got_timeout => 3 );
+  if (++$_[HEAP]->{accept_count} == CONNECTOR_COUNT) {
+    $_[KERNEL]->delay( got_timeout => 1 );
+  }
 }
 
 sub listener_got_error {
   delete $_[HEAP]->{listener_wheel};
+  $_[KERNEL]->delay( got_timeout => 1 );
 }
 
 sub listener_got_timeout {
@@ -117,7 +120,7 @@ POE::Session->create(
 );
 
 if (defined $bound_port) {
-  for (my $connector_count=0; $connector_count < 5; $connector_count++) {
+  foreach (1..CONNECTOR_COUNT) {
     POE::Session->create(
       inline_states => {
         _start         => \&connector_start,
