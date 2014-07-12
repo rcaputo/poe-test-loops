@@ -171,7 +171,7 @@ sub udp_peer_a_input {
         or $heap->{peer_a_send_error}++;
     }
     else {
-      $kernel->select_read($socket);
+      $kernel->delay( ev_took_too_long => 0.5 );
     }
   }
   else {
@@ -192,7 +192,7 @@ sub udp_peer_b_input {
         or $heap->{peer_b_send_error}++;
     }
     else {
-      $kernel->select_read($socket);
+      $kernel->delay( ev_took_too_long => 0.5 );
     }
   }
   else {
