@@ -153,7 +153,7 @@ POE::Session->create(
         last if ++$ready_count >= FORK_COUNT;
       }
 
-      $kernel->yield( forking_time_is_up => 1 );
+      $kernel->yield( 'forking_time_is_up' );
       note("Waiting 1 second for child processes to settle.");
     },
 

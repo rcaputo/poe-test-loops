@@ -48,6 +48,9 @@ BEGIN { use_ok("POE") }
 
 my $fork_count = 8;
 
+use IO::Pipely qw(pipely);
+my ($pipe_read, $pipe_write) = pipely();
+
 # Set up a signal catching session.  This test uses plain fork(2) and
 # POE's $SIG{CHLD} handler.
 
@@ -75,8 +78,17 @@ POE::Session->create(
             $heap->{children}->{$child_pid} = 1;
           }
           else {
-            # Child side sleeps. With the fishes.
+            # A brief sleep so the parent has more opportunity to
+            # finish forking.
+            sleep 1;
+
+            # Defensively make sure SIGINT will be fatal.
             $SIG{INT} = 'DEFAULT';
+
+            # Tell the parent we're ready.
+            print $pipe_write "$$\n";
+
+            # Wait for SIGINT.
             sleep 3600;
             exit;
           }
@@ -91,23 +103,16 @@ POE::Session->create(
         "forked $heap->{forked} processes (out of $fork_count)"
       );
 
-      # Wait a factor of the fork time for things to settle down.
-      # This prevents false negatives on slower systems.
 
-      my $fork_delay = time() - $fork_start_time;
+      # NOTE: This is bad form.  We're going to block here until all
+      # children check in, or die trying.
 
-      if ($fork_delay < 2) {
-        $fork_delay = 2;
-      }
-      elsif ($fork_delay < 5) {
-        $fork_delay = 5;
-      }
-      else {
-        $fork_delay = 10;
+      my $ready_count = 0;
+      while (<$pipe_read>) {
+        last if ++$ready_count >= $fork_count;
       }
 
-      $kernel->delay( forking_time_is_up => $fork_delay );
-      diag("Waiting $fork_delay seconds for child processes to settle.");
+      $kernel->yield( 'forking_time_is_up' );
     },
 
     _stop => sub {
@@ -123,13 +128,11 @@ POE::Session->create(
     catch_sigchld => sub {
       my ($kernel, $heap) = @_[KERNEL, HEAP];
 
-      # Count the child reap.
-      $heap->{reaped}++;
-
-      # Refresh the fork timeout.
-      $kernel->delay(
-        reaping_time_is_up => 2 * ($heap->{forked} - $heap->{reaped} + 1)
-      );
+      # Count the child reap.  If that's all of them, wait just a
+      # little longer to make sure there aren't extra ones.
+      if (++$heap->{reaped} >= $fork_count) {
+        $kernel->delay( reaping_time_is_up => 0.500 );
+      }
     },
 
     forking_time_is_up => sub {
@@ -149,13 +152,8 @@ POE::Session->create(
 
       $heap->{reap_start} = time();
 
-      # Wait a factor of the number of child processes, plus one, for
-      # reaped children.  The extra time is to ensure we don't reap
-      # more processes than we started with.
-
-      $kernel->delay(
-        reaping_time_is_up => 2 * ($heap->{forked} - $heap->{reaped} + 1)
-      );
+      # Cap the maximum time for failures.
+      $kernel->delay( reaping_time_is_up => 10 );
     },
 
     # Do nothing here.  The timer exists just to keep the session
@@ -209,15 +207,17 @@ POE::Session->create(
     send_signals => sub {
       ok(kill("USR1", $$) == 1, "sent self SIGUSR1");
       ok(kill("PIPE", $$) == 1, "sent self SIGPIPE");
-      $_[KERNEL]->delay(wait_for_signals => 1);
+      $_[KERNEL]->delay(signal_wait_timeout => 1);
     },
     got_usr1 => sub {
       $_[HEAP]->{usr1}++;
+      _reduce_signal_wait_timeout($_[HEAP]);
     },
     got_pipe => sub {
       $_[HEAP]->{pipe}++;
+      _reduce_signal_wait_timeout($_[HEAP]);
     },
-    wait_for_signals => sub {
+    signal_wait_timeout => sub {
       $_[KERNEL]->sig( USR1 => undef );
       $_[KERNEL]->sig( PIPE => undef );
     },
@@ -227,6 +227,13 @@ POE::Session->create(
     },
   },
 );
+
+sub _reduce_signal_wait_timeout {
+  my ($heap) = @_;
+  if ($heap->{usr1} and $heap->{pipe}) {
+    POE::Kernel->delay(signal_wait_timeout => 0.100);
+  }
+}
 
 # Run the tests.
 
