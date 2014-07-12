@@ -82,6 +82,12 @@ sub sss_start {
 sub sss_block {
   my ($kernel, $heap, $block) = @_[KERNEL, HEAP, ARG0];
   DEBUG and warn "=== handle tail got block ($block)";
+
+  if ($block eq 'DONEDONEDONEDONE') {
+    $kernel->delay( ev_timeout => 1 );
+    return;
+  }
+
   $heap->{read_count}++;
   $kernel->delay( ev_timeout => 10 );
 }
@@ -190,6 +196,9 @@ sub client_tcp_got_alarm {
   if ($heap->{put_count} < $max_send_count) {
     # Delay is 1 for slow hardware.
     $kernel->delay( got_alarm => 1 );
+  }
+  else {
+    $heap->{wheel}->put( 'DONEDONEDONEDONE' );
   }
 }
 
