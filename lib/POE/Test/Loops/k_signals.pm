@@ -103,7 +103,6 @@ POE::Session->create(
         "forked $heap->{forked} processes (out of $fork_count)"
       );
 
-
       # NOTE: This is bad form.  We're going to block here until all
       # children check in, or die trying.
 

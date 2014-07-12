@@ -154,7 +154,6 @@ POE::Session->create(
       }
 
       $kernel->yield( 'forking_time_is_up' );
-      note("Waiting 1 second for child processes to settle.");
     },
 
     _stop => sub {

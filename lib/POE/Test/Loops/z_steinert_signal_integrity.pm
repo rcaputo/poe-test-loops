@@ -58,6 +58,9 @@ sub handle_signal {
     ($_[ARG1] == 99),
     "signal parameters: ('$_[ARG0]' eq 'MOO', $_[ARG1] == 99)"
   );
+
+  # Wait just a little bit, in case of spurious signal.
+  POE::Kernel->delay( timed_out => 0.250 );
 }
 
 sub timed_out {
