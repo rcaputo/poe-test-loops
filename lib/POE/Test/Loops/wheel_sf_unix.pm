@@ -15,6 +15,7 @@ BEGIN {
 }
 
 use Socket;
+use File::Temp qw(tempfile);
 
 # We can't test_setup(0, "reason") because that calls exit().  And Tk
 # will croak if you call BEGIN { exit() }.  And that croak will cause
@@ -47,7 +48,7 @@ use POE qw(
   Driver::SysRW
 );
 
-my $unix_server_socket = '/tmp/poe-usrv';
+my (undef, $unix_server_socket) = tempfile('poe-usrv-XXXXXX');
 
 ###############################################################################
 # A generic server session.
