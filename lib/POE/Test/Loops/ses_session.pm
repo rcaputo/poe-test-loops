@@ -610,12 +610,12 @@ POE::MySession->create(
 POE::Kernel->run();
 
 is(
-  $stop_called, 0,
-  "_stop wasn't called"
+  $stop_called, 4,
+  "_stop was called the correct number of times"
 );
 
 is(
-  $child_called, 0,
+  $child_called, 3,
   "_child wasn't called"
 );
 
