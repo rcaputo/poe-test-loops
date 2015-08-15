@@ -29,7 +29,8 @@ BEGIN {
 BEGIN {
   my $error;
 
-  eval 'use Socket::GetAddrInfo qw(:newapi getaddrinfo getnameinfo NI_NUMERICHOST NI_NUMERICSERV)';
+  eval 'use Socket::GetAddrInfo 0.22 qw(getaddrinfo getnameinfo NI_NUMERICHOST NI_NUMERICSERV)';
+  eval 'use Socket::GetAddrInfo qw(:newapi getaddrinfo getnameinfo NI_NUMERICHOST NI_NUMERICSERV)' if $@;
   if ($@) {
     $error = "Socket::GetAddrInfo is needed for IPv6 tests";
   }
