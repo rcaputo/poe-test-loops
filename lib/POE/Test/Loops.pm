@@ -45,7 +45,7 @@ sub generate {
     }
 
     my $source = <<"EOS";
-#!/usr/bin/perl -w
+#!$^X -w
 
 use strict;
 
