@@ -16,7 +16,6 @@ use constant TEST_BLOCK_BEGIN     => 0x08;
 
 ### Find the test libraries.
 
-use lib qw(./lib ../lib);
 use POE::Test::DondeEstan;
 my $source_base = POE::Test::DondeEstan->marco();
 

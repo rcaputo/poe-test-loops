@@ -119,7 +119,7 @@ my $expect = "#!$^X -w\n" . <<'EOS';
 
 use strict;
 
-use lib qw(lib/POE/Test/Loops);
+use lib qw(~LIB~);
 use Test::More;
 use POSIX qw(_exit);
 
@@ -138,6 +138,10 @@ _exit 0 if $^O eq 'MSWin32';
 CORE::exit 0;
 EOS
 
-is $test_content, $expect, "test content as expected" or diag $test_content;
+my $lib = $INC{'POE/Test/Loops.pm'} or die;
+$lib =~ s{\.pm$}{};
+$expect =~ s{~LIB~}{$lib}g;
+
+is $test_content, $expect, "test content as expected - lib uses absolute PATH" or diag $test_content;
 
 done_testing;
