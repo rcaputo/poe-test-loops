@@ -44,29 +44,29 @@ sub generate {
 			);
     }
 
-    my $source = (
-			"#!/usr/bin/perl -w\n" .
-			"\n" .
-			"use strict;\n" .
-			"\n" .
-			"use lib qw(--base_lib--);\n" .
-			"use Test::More;\n" .
-			"use POSIX qw(_exit);\n" .
-			"\n" .
-			"--loop_cfg--\n" .
-			"\n" .
-			"BEGIN {\n" .
-			"  if (my \$why = skip_tests('--test_name--')) {\n" .
-			"    plan skip_all => \$why\n" .
-			"  }\n" .
-			"}\n" .
-			"\n" .
-			"# Run the tests themselves.\n" .
-			"require '--base_file--';\n" .
-			"\n" .
-			"_exit 0 if \$^O eq 'MSWin32';\n" .
-			"CORE::exit 0;\n"
-		);
+    my $source = <<"EOS";
+#!/usr/bin/perl -w
+
+use strict;
+
+use lib qw(--base_lib--);
+use Test::More;
+use POSIX qw(_exit);
+
+--loop_cfg--
+
+BEGIN {
+  if (my \$why = skip_tests('--test_name--')) {
+    plan skip_all => \$why
+  }
+}
+
+# Run the tests themselves.
+require '--base_file--';
+
+_exit 0 if \$^O eq 'MSWin32';
+CORE::exit 0;
+EOS
 
 		# Full directory where source files are found.
 
