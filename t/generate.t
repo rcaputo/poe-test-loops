@@ -115,8 +115,7 @@ my $test_content;
     }
 }
 
-is $test_content, <<'EOS', "test content as expected" or diag $test_content;
-#!/usr/bin/perl -w
+my $expect = "#!$^X -w\n" . <<'EOS';
 
 use strict;
 
@@ -138,5 +137,7 @@ require '00_info.pm';
 _exit 0 if $^O eq 'MSWin32';
 CORE::exit 0;
 EOS
+
+is $test_content, $expect, "test content as expected" or diag $test_content;
 
 done_testing;
