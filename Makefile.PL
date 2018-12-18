@@ -21,6 +21,9 @@ my %WriteMakefileArgs = (
   "PREREQ_PM" => {
     "Test::More" => "1.302140"
   },
+  "TEST_REQUIRES" => {
+    "Test::Deep" => "1.128"
+  },
   "VERSION" => "1.361",
   "test" => {
     "TESTS" => "t/*.t"
@@ -29,6 +32,7 @@ my %WriteMakefileArgs = (
 
 
 my %FallbackPrereqs = (
+  "Test::Deep" => "1.128",
   "Test::More" => "1.302140"
 );
 
